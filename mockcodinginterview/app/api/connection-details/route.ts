@@ -42,6 +42,8 @@ export const questionGenerationAgent = new Agent({
          - Edge cases to watch out for.
       
       Keep the problem difficulty to "Medium" - something solvable in 20-30 minutes while explaining thoughts.
+      
+      IMPORTANT: Do NOT wrap the "User Code Context" in markdown code blocks (e.g. ```python ... ```). Return ONLY the raw code.
   `,
   model: "openai/gpt-4o", // Updated to a valid model identifier (check your provider's slug)
 });
@@ -88,6 +90,13 @@ export async function POST(req: Request) {
 
     // Handle the result safely
     const generatedContent = result.object;
+
+    if (generatedContent?.text_based_problem_description_given_to_user) {
+      // Strip markdown code fences if present
+      generatedContent.text_based_problem_description_given_to_user = generatedContent.text_based_problem_description_given_to_user
+        .replace(/^```[\w]*\n/, '')
+        .replace(/\n```$/, '');
+    }
 
     if (!generatedContent) {
       throw new Error("Failed to generate interview question");
