@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { TokenSource } from 'livekit-client';
 import { useSession } from '@livekit/components-react';
 import { WarningIcon } from '@phosphor-icons/react/dist/ssr';
@@ -27,10 +27,27 @@ interface AppProps {
 }
 
 export function App({ appConfig }: AppProps) {
+  const [initialCode, setInitialCode] = useState<string | undefined>();
+
   const tokenSource = useMemo(() => {
     return typeof process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT === 'string'
       ? getSandboxTokenSource(appConfig)
-      : TokenSource.endpoint('/api/connection-details');
+      : TokenSource.custom(async () => {
+        const res = await fetch('/api/connection-details', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room_config: {
+              agents: appConfig.agentName ? [{ agent_name: appConfig.agentName }] : [],
+            },
+          }),
+        });
+        const data = await res.json();
+        if (data.initialCode) {
+          setInitialCode(data.initialCode);
+        }
+        return data;
+      });
   }, [appConfig]);
 
   const session = useSession(
@@ -42,7 +59,7 @@ export function App({ appConfig }: AppProps) {
     <AgentSessionProvider session={session}>
       <AppSetup />
       <main className="grid h-svh grid-cols-1 place-content-center">
-        <ViewController appConfig={appConfig} />
+        <ViewController appConfig={appConfig} initialCode={initialCode} />
       </main>
       <StartAudioButton label="Start Audio" />
       <Toaster

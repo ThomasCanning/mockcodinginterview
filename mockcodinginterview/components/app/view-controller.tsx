@@ -29,9 +29,10 @@ const VIEW_MOTION_PROPS = {
 
 interface ViewControllerProps {
   appConfig: AppConfig;
+  initialCode?: string;
 }
 
-export function ViewController({ appConfig }: ViewControllerProps) {
+export function ViewController({ appConfig, initialCode }: ViewControllerProps) {
   const { isConnected, start } = useSessionContext();
 
   return (
@@ -47,7 +48,7 @@ export function ViewController({ appConfig }: ViewControllerProps) {
       )}
       {/* Session view */}
       {isConnected && (
-        <MotionSessionView key="session-view" {...VIEW_MOTION_PROPS} appConfig={appConfig} />
+        <MotionSessionView key="session-view" {...VIEW_MOTION_PROPS} appConfig={appConfig} initialCode={initialCode} />
       )}
     </AnimatePresence>
   );
