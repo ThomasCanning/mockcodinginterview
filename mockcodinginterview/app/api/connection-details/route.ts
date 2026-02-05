@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { AccessToken, type AccessTokenOptions, type VideoGrant } from 'livekit-server-sdk';
 import { RoomConfiguration } from '@livekit/protocol';
+import { Agent } from "@mastra/core/agent";
+import { z } from "zod";
 
 type ConnectionDetails = {
   serverUrl: string;
@@ -18,6 +20,32 @@ const LIVEKIT_URL = process.env.LIVEKIT_URL;
 // don't cache the results
 export const revalidate = 0;
 
+export const questionGenerationAgent = new Agent({
+  id: "question-generation-agent",
+  name: "Question Generation Agent",
+  instructions: `
+      You are an expert technical interviewer at a top-tier tech company. 
+      Your goal is to generate a realistic coding interview question.
+      
+      You must generate two distinct parts:
+      1. **User Code Context**: This is the starting code given to the candidate in their IDE. It MUST be valid, compilable/interpretable code in the requested language. It should include:
+         - Necessary imports (e.g., \`import java.util.*;\` or \`from typing import List\`).
+         - A clear problem description inside a multi-line comment block at the top.
+         - The function signature/class structure they need to implement.
+         - A \`pass\` or \`return null\` placeholder so the code is syntactically valid immediately.
+      
+      2. **Interviewer Guide**: A secret cheat sheet for the AI interviewer agent. It must include:
+         - A concise summary of the problem.
+         - Some example approaches..
+         - Common pitfalls or bugs candidates make.
+         - Specific hints to nudge the candidate if they get stuck.
+         - Edge cases to watch out for.
+      
+      Keep the problem difficulty to "Medium" - something solvable in 20-30 minutes while explaining thoughts.
+  `,
+  model: "openai/gpt-4o", // Updated to a valid model identifier (check your provider's slug)
+});
+
 export async function POST(req: Request) {
   try {
     if (LIVEKIT_URL === undefined) {
@@ -32,30 +60,42 @@ export async function POST(req: Request) {
 
     // Parse agent configuration from request body
     const body = await req.json();
-    const agentName: string = body?.room_config?.agents?.[0]?.agent_name;
+    const agentName: string = body?.room_config?.agents?.[0]?.agent_name || "interviewer-agent";
+
+    // Extract user preferences with fallbacks
+    // In a real app, you would pass these from the client in the request body
+    const programming_language = body?.programming_language || 'python';
+    const company_name = body?.company_name || 'Generic Tech Company';
 
     // Generate participant token
     const participantName = 'user';
     const participantIdentity = `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
     const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
 
-    const programming_language = 'python';
+    const prompt = `Generate a coding interview question for a software engineer position at ${company_name}. 
+    The programming language MUST be ${programming_language}. 
+    Ensure the coding style matches ${company_name}'s typical interview flavor (e.g., functional vs OOP, algorithmic depth).`;
 
-    const text_based_problem_description_given_to_user = `from typing import List
+    // Call the Mastra Agent
+    const result = await questionGenerationAgent.generate(prompt, {
+      structuredOutput: {
+        schema: z.object({
+          text_based_problem_description_given_to_user: z.string().describe("The starting code and comments presented to the user. Must be valid syntax."),
+          interviewer_problem_reference_guide: z.string().describe("The hidden guide for the AI interviewer agent containing solution, hints, and complexities."),
+        }),
+      },
+    });
 
-    # Given an array of integers \`nums\` and an integer \`target\`, return indices
-    # of the two numbers such that they add up to \`target\`.
-    # Assume exactly one solution exists. Do not use the same element twice.
-    #
-    # Example: nums = [2,7,11,15], target = 9 -> [0,1]
+    // Handle the result safely
+    const generatedContent = result.object;
 
-    def two_sum(nums: List[int], target: int) -> List[int]:
-        pass
-    `;
+    if (!generatedContent) {
+      throw new Error("Failed to generate interview question");
+    }
 
-    const interviewer_problem_reference_guide = `
-### PROBLEM SUMMARY The candidate needs to find two indices in an array that sum to a specific target.  ### APPROACH 1: Brute Force (Naive) - **Logic:** Use a nested loop. For each element \`i\`, iterate through the rest of the array \`j\` to see if \`nums[i] + nums[j] == target\`. - **Time Complexity:** O(n^2) - Very slow for large inputs. - **Space Complexity:** O(1). - **Feedback:** If the user does this, accept it but ask: "This works, but it's O(n^2). Can you think of a way to do this in linear time, perhaps using more memory?"  ### APPROACH 2: Hash Map (Optimized) - **Logic:** Iterate through the array once. For each element \`x\`, calculate the \`complement = target - x\`. Check if \`complement\` exists in the hash map. If yes, return the current index and the complement's index. If no, store \`x\` mapped to its index. - **Time Complexity:** O(n). - **Space Complexity:** O(n). - **Feedback:** This is the ideal solution.  ### COMMON PITFALLS & HINTS 1. **Using the same element:** The user might mistakenly use \`nums[i]\` twice (e.g., if target is 6 and \`nums[i]\` is 3).     - *Hint:* "Remember, you cannot use the same element twice." 2. **Returning Values vs Indices:** Users often return \`[2, 7]\` instead of \`[0, 1]\`.    - *Hint:* "Check the return type required by the problem description." 3. **Off-by-one errors:** In the brute force approach, the inner loop should start at \`i + 1\`.  ### EDGE CASES - The array length is minimum 2 (guaranteed by constraints). - Negative numbers are allowed (logic remains the same).`;
+    const { text_based_problem_description_given_to_user, interviewer_problem_reference_guide } = generatedContent;
 
+    // Pack into metadata for the LiveKit agent to read
     const metadata = JSON.stringify({
       programming_language,
       text_based_problem_description_given_to_user,
@@ -76,15 +116,18 @@ export async function POST(req: Request) {
       participantName,
       initialCode: text_based_problem_description_given_to_user,
     };
+
     const headers = new Headers({
       'Cache-Control': 'no-store',
     });
+
     return NextResponse.json(data, { headers });
   } catch (error) {
     if (error instanceof Error) {
       console.error(error);
       return new NextResponse(error.message, { status: 500 });
     }
+    return new NextResponse("Unknown error", { status: 500 });
   }
 }
 
