@@ -157,28 +157,11 @@ export function SetupScreen({ onStart, isGenerating }: SetupScreenProps) {
                                 <Command>
                                     <CommandInput
                                         placeholder="Search company..."
-                                        onValueChange={(val) => {
-                                            // Allow setting custom value if it doesn't match
-                                            // This is handled by creating a new entry implicitly if confusing, 
-                                            // but standard shadcn pattern usually filters.
-                                            // For simple free text input + suggestions, we might need a slightly different pattern
-                                            // but let's stick to standard combobox behavior first.
-                                            // Actually, the user wants to TYPE in. 
-                                            // If CommandInput value changes, we typically filter. 
-                                        }}
-
+                                        onValueChange={() => { }}
                                     />
                                     <CommandList className="max-h-[200px]">
                                         <CommandEmpty className="py-2 px-4 text-sm text-muted-foreground">
-                                            <div
-                                                className="cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-sm px-2 py-1.5"
-                                                onClick={() => {
-                                                    // NOTE: This relies on accessing the input value which isn't directly exposed nicely here.
-                                                    // A better way for "Creatable" is manually managing the input state.
-                                                    // We'll fix this in a second pass if this simple empty state isn't enough.
-                                                    // For now, let's just show the companies.
-                                                }}
-                                            >
+                                            <div className="rounded-sm px-2 py-1.5">
                                                 No company found.
                                             </div>
                                         </CommandEmpty>
