@@ -84,10 +84,12 @@ export function Fade({ top = false, bottom = false, className }: FadeProps) {
 
 interface SessionViewProps {
   appConfig: AppConfig;
+  initialCode?: string;
 }
 
 export const SessionView = ({
   appConfig,
+  initialCode,
   ...props
 }: React.ComponentProps<'section'> & SessionViewProps) => {
   const session = useSessionContext();
@@ -117,7 +119,7 @@ export const SessionView = ({
       <div className="flex h-full w-full">
         {/* Left Side: Code Editor */}
         <div className="hidden border-r md:block md:w-1/2">
-          <CodeEditor className="h-full w-full" />
+          <CodeEditor className="h-full w-full" initialCode={initialCode} />
         </div>
 
         {/* Right Side: Existing Content (Voice Assistant + Controls) */}
@@ -159,7 +161,7 @@ export const SessionView = ({
                 controls={controls}
                 isChatOpen={chatOpen}
                 isConnected={session.isConnected}
-                onDisconnect={session.end}
+                onDisconnect={() => session.end()}
                 onIsChatOpenChange={setChatOpen}
               />
             </div>

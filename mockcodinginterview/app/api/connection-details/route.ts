@@ -7,6 +7,7 @@ type ConnectionDetails = {
   roomName: string;
   participantName: string;
   participantToken: string;
+  initialCode?: string;
 };
 
 // NOTE: you are expected to define the following environment variables in `.env.local`:
@@ -38,8 +39,31 @@ export async function POST(req: Request) {
     const participantIdentity = `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
     const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
 
+    const programming_language = 'python';
+
+    const text_based_problem_description_given_to_user = `from typing import List
+
+    # Given an array of integers \`nums\` and an integer \`target\`, return indices
+    # of the two numbers such that they add up to \`target\`.
+    # Assume exactly one solution exists. Do not use the same element twice.
+    #
+    # Example: nums = [2,7,11,15], target = 9 -> [0,1]
+
+    def two_sum(nums: List[int], target: int) -> List[int]:
+        pass
+    `;
+
+    const interviewer_problem_reference_guide = `
+### PROBLEM SUMMARY The candidate needs to find two indices in an array that sum to a specific target.  ### APPROACH 1: Brute Force (Naive) - **Logic:** Use a nested loop. For each element \`i\`, iterate through the rest of the array \`j\` to see if \`nums[i] + nums[j] == target\`. - **Time Complexity:** O(n^2) - Very slow for large inputs. - **Space Complexity:** O(1). - **Feedback:** If the user does this, accept it but ask: "This works, but it's O(n^2). Can you think of a way to do this in linear time, perhaps using more memory?"  ### APPROACH 2: Hash Map (Optimized) - **Logic:** Iterate through the array once. For each element \`x\`, calculate the \`complement = target - x\`. Check if \`complement\` exists in the hash map. If yes, return the current index and the complement's index. If no, store \`x\` mapped to its index. - **Time Complexity:** O(n). - **Space Complexity:** O(n). - **Feedback:** This is the ideal solution.  ### COMMON PITFALLS & HINTS 1. **Using the same element:** The user might mistakenly use \`nums[i]\` twice (e.g., if target is 6 and \`nums[i]\` is 3).     - *Hint:* "Remember, you cannot use the same element twice." 2. **Returning Values vs Indices:** Users often return \`[2, 7]\` instead of \`[0, 1]\`.    - *Hint:* "Check the return type required by the problem description." 3. **Off-by-one errors:** In the brute force approach, the inner loop should start at \`i + 1\`.  ### EDGE CASES - The array length is minimum 2 (guaranteed by constraints). - Negative numbers are allowed (logic remains the same).`;
+
+    const metadata = JSON.stringify({
+      programming_language,
+      text_based_problem_description_given_to_user,
+      interviewer_problem_reference_guide,
+    });
+
     const participantToken = await createParticipantToken(
-      { identity: participantIdentity, name: participantName },
+      { identity: participantIdentity, name: participantName, metadata },
       roomName,
       agentName
     );
@@ -50,6 +74,7 @@ export async function POST(req: Request) {
       roomName,
       participantToken: participantToken,
       participantName,
+      initialCode: text_based_problem_description_given_to_user,
     };
     const headers = new Headers({
       'Cache-Control': 'no-store',
@@ -83,7 +108,7 @@ function createParticipantToken(
 
   if (agentName) {
     at.roomConfig = new RoomConfiguration({
-      agents: [{ agentName }],
+      agents: [{ agentName, metadata: userInfo.metadata }],
     });
   }
 

@@ -7,9 +7,10 @@ import { RpcInvocationData } from 'livekit-client';
 
 interface CodeEditorProps {
     className?: string;
+    initialCode?: string;
 }
 
-export function CodeEditor({ className }: CodeEditorProps) {
+export function CodeEditor({ className, initialCode }: CodeEditorProps) {
     const { room } = useSessionContext();
     const { localParticipant } = useLocalParticipant();
     const editorRef = useRef<any>(null);
@@ -49,12 +50,7 @@ export function CodeEditor({ className }: CodeEditorProps) {
         };
     }, [localParticipant]);
 
-    return (
-        <div className={className}>
-            <Editor
-                height="100%"
-                defaultLanguage="python"
-                defaultValue={`# -----------------------------------------------------------
+    const defaultCode = `# -----------------------------------------------------------
 # PROBLEM DESCRIPTION:
 # -----------------------------------------------------------
 # Given an array of integers \`nums\` and an integer \`target\`,
@@ -94,7 +90,14 @@ def two_sum(nums, target):
 if __name__ == "__main__":
     print("Test Case 1:", two_sum([2, 7, 11, 15], 9)) # Expected: [0, 1]
     print("Test Case 2:", two_sum([3, 2, 4], 6))      # Expected: [1, 2]
-    print("Test Case 3:", two_sum([3, 3], 6))         # Expected: [0, 1]`}
+    print("Test Case 3:", two_sum([3, 3], 6))         # Expected: [0, 1]`;
+
+    return (
+        <div className={className}>
+            <Editor
+                height="100%"
+                defaultLanguage="python"
+                defaultValue={initialCode || defaultCode}
                 theme="vs-dark"
                 onMount={handleEditorDidMount}
                 options={{
