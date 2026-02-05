@@ -17,12 +17,14 @@ from livekit.agents import (
     cli,
     function_tool,
     get_job_context,
-    inference,
     room_io,
 )
 from livekit.plugins import (
-    noise_cancellation,
+    cartesia,
+    deepgram,
+    openai,
     silero,
+    noise_cancellation,
 )
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
@@ -90,28 +92,27 @@ Use this guide to evaluate the candidate's approach and provide hints if necessa
 - Only speak if:
 a) The candidate asks a direct question.
 b) The candidate has been silent for a dangerously long time (e.g., > 2 minutes).
-c) The candidate explicitly asks for feedback (e.g., \"Does this look right?\").
+c) The candidate explicitly asks for feedback (e.g., "Does this look right?").
 - If the candidate is stuck, offer a small nudge based on the Reference Guide. **Do not reveal the full solution.**
 
 === TOOLS & DATA ===
 - **Reading Code:** You cannot see the screen directly. You must use the `get_codepad_state` tool to see their code. Call it only when requested or necessary.
 - **Cursor/Selection:** The tool output will contain `<CURSOR>` (caret position) or `<SELECTION>...</SELECTION>` (highlighted text). Use these to understand exactly what line or variable the user is focusing on.
-- **System Events:** You may receive messages starting with `SYSTEM_EVENT`. These are logs from the code runner (e.g., \"User ran code: SyntaxError\"). React to these naturally (e.g., \"Ah, looks like a syntax error on line 5\").
+- **System Events:** You may receive messages starting with `SYSTEM_EVENT`. These are logs from the code runner (e.g., "User ran code: SyntaxError"). React to these naturally (e.g., "Ah, looks like a syntax error on line 5").
 
 === VOICE OUTPUT RULES ===
 - Speak naturally and concisely.
-- Do not read code character-by-character (e.g., don't say \"def underscore two underscore sum\"). Instead, say \"your function definition\".
+- **DO NOT** read the example code, test cases, function signatures, or input/output samples aloud.
+- You SHOULD read or explain the textual problem description to ensure the candidate understands the task.
+- Do not read code character-by-character (e.g., never say underscore, don't say "def underscore two underscore sum").
+- You are interviewing for strong candidates, so don't give the solution away or be overly helpful.
 - Do not use markdown, lists, or JSON in your response."""),
         )
 
     async def on_enter(self):
         await self.session.generate_reply(
-            instructions=self._templater.render("""Greet the candidate professionally. 
-Introduce yourself as their interviewer.
-Make the user aware they can interrupt you at any time and ask any questions.
-Briefly explain the problem: {{metadata.text_based_problem_description_given_to_user}}
-Then ask: \"Do you have any questions, or are you ready to start?\""""),
-            allow_interruptions=True,
+            instructions=self._templater.render("Greet the candidate professionally. Summarize the problem description from {{metadata.text_based_problem_description_given_to_user}} to the candidate. Do NOT read any examples, function signatures, input/output samples, or test cases out loud. Mention that they can interrupt you at any point, and to please walk you what they are thinking throughout. Then ask: 'Do you have any questions?'"),
+            allow_interruptions=False,
         )
 
     @function_tool(name="get_codepad_state")
@@ -153,13 +154,9 @@ server.setup_fnc = prewarm
 @server.rtc_session(agent_name=AGENT_NAME)
 async def entrypoint(ctx: JobContext):
     session = AgentSession(
-        stt=inference.STT(model="deepgram/nova-3", language="en"),
-        llm=inference.LLM(model="openai/gpt-4.1-mini"),
-        tts=inference.TTS(
-            model="cartesia/sonic-3",
-            voice="9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
-            language="en"
-        ),
+        stt=deepgram.STT(model="nova-3"),
+        llm=openai.LLM(model="gpt-4o-mini"),
+        tts=cartesia.TTS(voice="a167e0f3-df7e-4d52-a9c3-f949145efdab"),
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
         preemptive_generation=True,
