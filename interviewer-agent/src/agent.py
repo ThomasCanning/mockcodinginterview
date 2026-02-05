@@ -107,6 +107,7 @@ c) The candidate explicitly asks for feedback (e.g., \"Does this look right?\").
         await self.session.generate_reply(
             instructions=self._templater.render("""Greet the candidate professionally. 
 Introduce yourself as their interviewer.
+Make the user aware they can interrupt you at any time and ask any questions.
 Briefly explain the problem: {{metadata.text_based_problem_description_given_to_user}}
 Then ask: \"Do you have any questions, or are you ready to start?\""""),
             allow_interruptions=True,
