@@ -35,8 +35,6 @@ AGENT_NAME = os.getenv("AGENT_NAME", "interviewer-agent")
 
 logger = logging.getLogger(f"agent-{AGENT_NAME}")
 
-# Interview Time Configuration (Seconds)
-# Production values: 15m, 25m, 30m
 TIME_LIMIT_MINIMUM_SECONDS = 15 * 60
 TIME_LIMIT_SOFT_WARNING_SECONDS = 25 * 60
 TIME_LIMIT_HARD_CUTOFF_SECONDS = 30 * 60
@@ -243,9 +241,11 @@ async def entrypoint(ctx: JobContext):
         agent=DefaultAgent(metadata=ctx.job.metadata),
         room=ctx.room,
         room_options=room_io.RoomOptions(
+            video_input=None,
             audio_input=room_io.AudioInputOptions(
                 noise_cancellation=lambda params: noise_cancellation.BVCTelephony() if params.participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_SIP else noise_cancellation.BVC(),
             ),
+            delete_room_on_close=True,
         ),
     )
 
