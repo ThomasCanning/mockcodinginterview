@@ -9,6 +9,7 @@ import { AgentSessionProvider } from '@/components/agents-ui/agent-session-provi
 import { StartAudioButton } from '@/components/agents-ui/start-audio-button';
 import { ViewController } from '@/components/app/view-controller';
 import { Toaster } from '@/components/ui/sonner';
+import { SetupScreen } from '@/components/app/setup-screen';
 import { useAgentErrors } from '@/hooks/useAgentErrors';
 import { useDebugMode } from '@/hooks/useDebug';
 import { getSandboxTokenSource } from '@/lib/utils';
@@ -26,29 +27,91 @@ interface AppProps {
   appConfig: AppConfig;
 }
 
-export function App({ appConfig }: AppProps) {
-  const [initialCode, setInitialCode] = useState<string | undefined>();
 
-  const tokenSource = useMemo(() => {
-    return typeof process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT === 'string'
-      ? getSandboxTokenSource(appConfig)
-      : TokenSource.custom(async () => {
-        const res = await fetch('/api/connection-details', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            room_config: {
-              agents: appConfig.agentName ? [{ agent_name: appConfig.agentName }] : [],
-            },
-          }),
-        });
-        const data = await res.json();
-        if (data.initialCode) {
-          setInitialCode(data.initialCode);
-        }
-        return data;
+export function App({ appConfig }: AppProps) {
+  const [connectionDetails, setConnectionDetails] = useState<{
+    serverUrl: string;
+    roomName: string;
+    participantToken: string;
+    participantName: string;
+    initialCode?: string;
+  } | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleStart = async (language: string, company: string) => {
+    setIsGenerating(true);
+    try {
+      // If we are in sandbox/demo mode using local env vars for connection, we might skip this.
+      // But the requirement implies we want to use the backend to generate questions.
+      // So we will always hit the API.
+
+      const res = await fetch('/api/connection-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          programming_language: language,
+          company_name: company,
+          room_config: {
+            agents: appConfig.agentName ? [{ agent_name: appConfig.agentName }] : [],
+          },
+        }),
       });
-  }, [appConfig]);
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch connection details: ${res.statusText}`);
+      }
+
+      const data = await res.json();
+      setConnectionDetails(data);
+    } catch (error) {
+      console.error('Failed to start interview:', error);
+      // Ideally show an error toast here
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  if (!connectionDetails) {
+    return (
+      <>
+        <SetupScreen onStart={handleStart} isGenerating={isGenerating} />
+        <Toaster
+          icons={{
+            warning: <WarningIcon weight="bold" />,
+          }}
+          position="top-center"
+          className="toaster group"
+        />
+      </>
+    );
+  }
+
+  return (
+    <InterviewSession
+      appConfig={appConfig}
+      connectionDetails={connectionDetails}
+    />
+  );
+}
+
+function InterviewSession({
+  appConfig,
+  connectionDetails
+}: {
+  appConfig: AppConfig;
+  connectionDetails: {
+    serverUrl: string;
+    roomName: string;
+    participantToken: string;
+    participantName: string;
+    initialCode?: string;
+  }
+}) {
+  const tokenSource = useMemo(() => {
+    return TokenSource.custom(async () => {
+      return connectionDetails;
+    });
+  }, [connectionDetails]);
 
   const session = useSession(
     tokenSource,
@@ -59,9 +122,12 @@ export function App({ appConfig }: AppProps) {
     <AgentSessionProvider session={session}>
       <AppSetup />
       <main className="grid h-svh grid-cols-1 place-content-center">
-        <ViewController appConfig={appConfig} initialCode={initialCode} />
+        <ViewController appConfig={appConfig} initialCode={connectionDetails.initialCode} />
       </main>
-      <StartAudioButton label="Start Audio" />
+      <StartAudioButton
+        label="Join Interview"
+        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 shadow-lg"
+      />
       <Toaster
         icons={{
           warning: <WarningIcon weight="bold" />,
