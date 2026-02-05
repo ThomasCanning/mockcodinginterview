@@ -1,86 +1,14 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
-import { useSessionContext, useSessionMessages } from '@livekit/components-react';
+import React, { useState } from 'react';
+import { useSessionContext, useSessionMessages, useVoiceAssistant } from '@livekit/components-react';
 import type { AppConfig } from '@/app-config';
 import {
   AgentControlBar,
-  type AgentControlBarControls,
 } from '@/components/agents-ui/agent-control-bar';
-import { ChatTranscript } from '@/components/app/chat-transcript';
-import { TileLayout } from '@/components/app/tile-layout';
+import { AgentAudioVisualizerBar } from '@/components/agents-ui/agent-audio-visualizer-bar';
 import { CodeEditor } from '@/components/app/code-editor';
 import { cn } from '@/lib/shadcn/utils';
-import { Shimmer } from '../ai-elements/shimmer';
-
-const MotionBottom = motion.create('div');
-
-const MotionMessage = motion.create(Shimmer);
-
-const BOTTOM_VIEW_MOTION_PROPS = {
-  variants: {
-    visible: {
-      opacity: 1,
-      translateY: '0%',
-    },
-    hidden: {
-      opacity: 0,
-      translateY: '100%',
-    },
-  },
-  initial: 'hidden',
-  animate: 'visible',
-  exit: 'hidden',
-  transition: {
-    duration: 0.3,
-    delay: 0.5,
-    ease: 'easeOut',
-  },
-};
-
-const SHIMMER_MOTION_PROPS = {
-  variants: {
-    visible: {
-      opacity: 1,
-      transition: {
-        ease: 'easeIn',
-        duration: 0.5,
-        delay: 0.8,
-      },
-    },
-    hidden: {
-      opacity: 0,
-      transition: {
-        ease: 'easeIn',
-        duration: 0.5,
-        delay: 0,
-      },
-    },
-  },
-  initial: 'hidden',
-  animate: 'visible',
-  exit: 'hidden',
-};
-
-interface FadeProps {
-  top?: boolean;
-  bottom?: boolean;
-  className?: string;
-}
-
-export function Fade({ top = false, bottom = false, className }: FadeProps) {
-  return (
-    <div
-      className={cn(
-        'from-background pointer-events-none h-4 bg-linear-to-b to-transparent',
-        top && 'bg-linear-to-b',
-        bottom && 'bg-linear-to-t',
-        className
-      )}
-    />
-  );
-}
 
 interface SessionViewProps {
   appConfig: AppConfig;
@@ -93,79 +21,75 @@ export const SessionView = ({
   ...props
 }: React.ComponentProps<'section'> & SessionViewProps) => {
   const session = useSessionContext();
-  const { messages } = useSessionMessages(session);
   const [chatOpen, setChatOpen] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-
-  const controls: AgentControlBarControls = {
-    leave: true,
-    microphone: true,
-    chat: appConfig.supportsChatInput,
-    camera: appConfig.supportsVideoInput,
-    screenShare: appConfig.supportsScreenShare,
-  };
-
-  useEffect(() => {
-    const lastMessage = messages.at(-1);
-    const lastMessageIsLocal = lastMessage?.from?.isLocal === true;
-
-    if (scrollAreaRef.current && lastMessageIsLocal) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-    }
-  }, [messages]);
+  const {
+    state: agentState,
+    audioTrack: agentAudioTrack,
+  } = useVoiceAssistant();
 
   return (
-    <section className="bg-background relative z-10 h-svh w-svw overflow-hidden" {...props}>
-      <div className="flex h-full w-full">
-        {/* Left Side: Code Editor */}
-        <div className="hidden border-r md:block md:w-1/2">
-          <CodeEditor className="h-full w-full" initialCode={initialCode} />
+    <section className="flex h-svh w-svw flex-col overflow-hidden bg-background" {...props}>
+      {/* Full Screen Code Editor */}
+      <div className="flex-1 relative w-full">
+        <CodeEditor className="absolute inset-0 h-full w-full" initialCode={initialCode} />
+      </div>
+
+      {/* Bottom Bar */}
+      <div className="flex shrink-0 items-center justify-between border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4 h-16">
+        {/* Left: Indicators */}
+        <div className="flex items-center gap-6">
+          {/* Interviewer Indicator */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Interviewer
+            </span>
+            <AgentAudioVisualizerBar
+              barCount={5}
+              state={agentState}
+              audioTrack={agentAudioTrack}
+              className="h-6 w-20 gap-1"
+            >
+              <span
+                className={cn([
+                  'bg-muted min-h-1.5 w-1.5 rounded-full',
+                  'origin-center transition-all duration-200 ease-in-out',
+                  'data-[lk-highlighted=true]:bg-primary',
+                  'data-[lk-highlighted=true]:h-full',
+                ])}
+              />
+            </AgentAudioVisualizerBar>
+          </div>
+
+          <div className="h-8 w-px bg-border" />
+
+          {/* User Indicator */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              You
+            </span>
+            <AgentControlBar
+              controls={{ microphone: true, camera: false, chat: false, screenShare: false, leave: false }}
+              variant="default"
+              isChatOpen={chatOpen}
+              isConnected={session.isConnected}
+              onDisconnect={() => session.end()}
+              onIsChatOpenChange={setChatOpen}
+              className="p-0 border-none shadow-none bg-transparent"
+            />
+          </div>
         </div>
 
-        {/* Right Side: Existing Content (Voice Assistant + Controls) */}
-        <div className="relative flex-1">
-          <Fade top className="absolute inset-x-4 top-0 z-10 h-40" />
-          {/* transcript */}
-          <ChatTranscript
-            hidden={!chatOpen}
-            messages={messages}
-            className="space-y-3 transition-opacity duration-300 ease-out"
+        {/* Right: End Call */}
+        <div className="flex items-center">
+          <AgentControlBar
+            controls={{ leave: true, microphone: false, camera: false, chat: false, screenShare: false }}
+            variant="default"
+            isChatOpen={chatOpen}
+            isConnected={session.isConnected}
+            onDisconnect={() => session.end()}
+            onIsChatOpenChange={setChatOpen}
+            className="p-0 border-none shadow-none bg-transparent"
           />
-          {/* Tile layout */}
-          <TileLayout chatOpen={chatOpen} />
-          {/* Bottom */}
-          <MotionBottom
-            {...BOTTOM_VIEW_MOTION_PROPS}
-            className="fixed right-0 bottom-0 z-50 w-full md:w-1/2"
-          >
-            {/* Pre-connect message */}
-            {appConfig.isPreConnectBufferEnabled && (
-              <AnimatePresence>
-                {messages.length === 0 && (
-                  <MotionMessage
-                    key="pre-connect-message"
-                    duration={2}
-                    aria-hidden={messages.length > 0}
-                    {...SHIMMER_MOTION_PROPS}
-                    className="pointer-events-none mx-auto block w-full max-w-2xl pb-4 text-center text-sm font-semibold"
-                  >
-                    Agent is listening, ask it a question
-                  </MotionMessage>
-                )}
-              </AnimatePresence>
-            )}
-            <div className="bg-background relative mx-auto max-w-2xl pb-3 md:pb-12 px-4 md:px-0">
-              <Fade bottom className="absolute inset-x-0 top-0 h-4 -translate-y-full" />
-              <AgentControlBar
-                variant="livekit"
-                controls={controls}
-                isChatOpen={chatOpen}
-                isConnected={session.isConnected}
-                onDisconnect={() => session.end()}
-                onIsChatOpenChange={setChatOpen}
-              />
-            </div>
-          </MotionBottom>
         </div>
       </div>
     </section>
