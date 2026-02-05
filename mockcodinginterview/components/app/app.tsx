@@ -124,7 +124,10 @@ function InterviewSession({
       <main className="grid h-svh grid-cols-1 place-content-center">
         <ViewController appConfig={appConfig} initialCode={connectionDetails.initialCode} />
       </main>
-      <StartAudioButton label="Start Audio" />
+      <StartAudioButton
+        label="Join Interview"
+        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 shadow-lg"
+      />
       <Toaster
         icons={{
           warning: <WarningIcon weight="bold" />,

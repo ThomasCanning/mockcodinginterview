@@ -3,12 +3,10 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useSessionContext } from '@livekit/components-react';
 import { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import type { AppConfig } from '@/app-config';
 import { FeedbackView } from '@/components/app/feedback-view';
 import { SessionView } from '@/components/app/session-view';
-import { WelcomeView } from '@/components/app/welcome-view';
-
-const MotionWelcomeView = motion.create(WelcomeView);
 const MotionSessionView = motion.create(SessionView);
 const MotionFeedbackView = motion.create(FeedbackView);
 
@@ -41,6 +39,12 @@ export function ViewController({ appConfig, initialCode }: ViewControllerProps) 
   const [hasConnected, setHasConnected] = useState(false);
 
   useEffect(() => {
+    if (!isConnected && start) {
+      start();
+    }
+  }, [isConnected, start]);
+
+  useEffect(() => {
     if (isConnected) {
       setHasConnected(true);
     } else if (hasConnected) {
@@ -55,14 +59,16 @@ export function ViewController({ appConfig, initialCode }: ViewControllerProps) 
 
   return (
     <AnimatePresence mode="wait">
-      {/* Welcome view */}
+      {/* Loading/Connecting view */}
       {!isConnected && !showFeedback && (
-        <MotionWelcomeView
-          key="welcome"
+        <motion.div
+          key="connecting"
           {...VIEW_MOTION_PROPS}
-          startButtonText={appConfig.startButtonText}
-          onStartCall={start}
-        />
+          className="flex flex-col items-center justify-center p-4"
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="mt-4 text-muted-foreground font-medium">Connecting to interview...</p>
+        </motion.div>
       )}
 
       {/* Session view */}
