@@ -47,7 +47,6 @@ class VariableTemplater:
         try:
             value = json.loads(metadata)
             if isinstance(value, dict):
-                logger.info(f"Successfully parsed metadata with keys: {list(value.keys())}")
                 return value
             else:
                 logger.warning(f"Job metadata is not a JSON dict: {metadata}")
@@ -153,8 +152,6 @@ server.setup_fnc = prewarm
 
 @server.rtc_session(agent_name=AGENT_NAME)
 async def entrypoint(ctx: JobContext):
-    logger.info(f"Entrypoint receiving metadata: {ctx.job.metadata}")
-
     session = AgentSession(
         stt=inference.STT(model="deepgram/nova-3", language="en"),
         llm=inference.LLM(model="openai/gpt-4.1-mini"),

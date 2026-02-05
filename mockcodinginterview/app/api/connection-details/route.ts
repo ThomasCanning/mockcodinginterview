@@ -7,6 +7,7 @@ type ConnectionDetails = {
   roomName: string;
   participantName: string;
   participantToken: string;
+  initialCode?: string;
 };
 
 // NOTE: you are expected to define the following environment variables in `.env.local`:
@@ -73,7 +74,6 @@ export async function POST(req: Request) {
       roomName,
       participantToken: participantToken,
       participantName,
-      // @ts-expect-error adding extra field
       initialCode: text_based_problem_description_given_to_user,
     };
     const headers = new Headers({
