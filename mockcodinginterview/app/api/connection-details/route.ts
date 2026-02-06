@@ -43,7 +43,7 @@ export const questionGenerationAgent = new Agent({
       
       Keep the problem difficulty to "Medium" - something solvable in 20-30 minutes while explaining thoughts.
       
-      IMPORTANT: Do NOT wrap the "User Code Context" in markdown code blocks (e.g. ```python ... ```). Return ONLY the raw code.
+      IMPORTANT: Do NOT wrap the "User Code Context" in markdown code blocks (e.g. \`\`\`python ... \`\`\`). Return ONLY the raw code.
   `,
   model: "openai/gpt-4o", // Updated to a valid model identifier (check your provider's slug)
 });
