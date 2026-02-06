@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { AccessToken, type AccessTokenOptions, type VideoGrant } from 'livekit-server-sdk';
-import { z } from 'zod';
 import { RoomConfiguration } from '@livekit/protocol';
-import { Agent } from '@mastra/core/agent';
 import { generateInterview } from '@/mastra';
 
 type ConnectionDetails = {

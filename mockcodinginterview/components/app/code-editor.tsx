@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { RpcInvocationData } from 'livekit-client';
+import type { RpcInvocationData } from 'livekit-client';
 import { useLocalParticipant, useSessionContext } from '@livekit/components-react';
-import Editor, { OnMount } from '@monaco-editor/react';
+import Editor, { type OnMount } from '@monaco-editor/react';
+
+type MonacoEditor = Parameters<OnMount>[0];
 
 interface CodeEditorProps {
   className?: string;
@@ -11,9 +13,9 @@ interface CodeEditorProps {
 }
 
 export function CodeEditor({ className, initialCode }: CodeEditorProps) {
-  const { room } = useSessionContext();
+  const { room: _room } = useSessionContext();
   const { localParticipant } = useLocalParticipant();
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<MonacoEditor | null>(null);
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;

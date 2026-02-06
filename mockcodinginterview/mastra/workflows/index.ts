@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { questionGeneratorAgent } from '../agents/question-generator';
-import { startingCodeAgent } from '../agents/platform-engineer';
 import { feedbackAgent } from '../agents/feedback';
+import { startingCodeAgent } from '../agents/platform-engineer';
+import { questionGeneratorAgent } from '../agents/question-generator';
 
 export async function generateInterview(company: string, language: string) {
   // STEP 1: Gemini generates the "Knowledge"
