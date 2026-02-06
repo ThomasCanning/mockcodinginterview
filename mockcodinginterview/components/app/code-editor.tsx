@@ -1,56 +1,62 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import Editor, { OnMount } from '@monaco-editor/react';
-import { useSessionContext, useLocalParticipant } from '@livekit/components-react';
 import { RpcInvocationData } from 'livekit-client';
+import { useLocalParticipant, useSessionContext } from '@livekit/components-react';
+import Editor, { OnMount } from '@monaco-editor/react';
 
 interface CodeEditorProps {
-    className?: string;
-    initialCode?: string;
+  className?: string;
+  initialCode?: string;
 }
 
 export function CodeEditor({ className, initialCode }: CodeEditorProps) {
-    const { room } = useSessionContext();
-    const { localParticipant } = useLocalParticipant();
-    const editorRef = useRef<any>(null);
+  const { room } = useSessionContext();
+  const { localParticipant } = useLocalParticipant();
+  const editorRef = useRef<any>(null);
 
-    const handleEditorDidMount: OnMount = (editor, monaco) => {
-        editorRef.current = editor;
+  const handleEditorDidMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+  };
+
+  useEffect(() => {
+    if (!localParticipant) return;
+
+    const handleRpc = async (data: RpcInvocationData) => {
+      if (!editorRef.current) return 'Unable to read code editor';
+
+      const model = editorRef.current.getModel();
+      if (!model) return 'Unable to read code model';
+
+      const value = model.getValue();
+      const selection = editorRef.current.getSelection();
+      const position = editorRef.current.getPosition();
+
+      if (selection && !selection.isEmpty()) {
+        const startOffset = model.getOffsetAt(selection.getStartPosition());
+        const endOffset = model.getOffsetAt(selection.getEndPosition());
+        return (
+          value.slice(0, startOffset) +
+          '<SELECTION>' +
+          value.slice(startOffset, endOffset) +
+          '</SELECTION>' +
+          value.slice(endOffset)
+        );
+      } else if (position) {
+        const offset = model.getOffsetAt(position);
+        return value.slice(0, offset) + '<CURSOR>' + value.slice(offset);
+      }
+
+      return value;
     };
 
-    useEffect(() => {
-        if (!localParticipant) return;
+    localParticipant.registerRpcMethod('get_codepad_state', handleRpc);
+    return () => {
+      localParticipant.unregisterRpcMethod('get_codepad_state');
+    };
+  }, [localParticipant]);
 
-        const handleRpc = async (data: RpcInvocationData) => {
-            if (!editorRef.current) return 'Unable to read code editor';
-
-            const model = editorRef.current.getModel();
-            if (!model) return 'Unable to read code model';
-
-            const value = model.getValue();
-            const selection = editorRef.current.getSelection();
-            const position = editorRef.current.getPosition();
-
-            if (selection && !selection.isEmpty()) {
-                const startOffset = model.getOffsetAt(selection.getStartPosition());
-                const endOffset = model.getOffsetAt(selection.getEndPosition());
-                return value.slice(0, startOffset) + '<SELECTION>' + value.slice(startOffset, endOffset) + '</SELECTION>' + value.slice(endOffset);
-            } else if (position) {
-                const offset = model.getOffsetAt(position);
-                return value.slice(0, offset) + '<CURSOR>' + value.slice(offset);
-            }
-
-            return value;
-        };
-
-        localParticipant.registerRpcMethod('get_codepad_state', handleRpc);
-        return () => {
-            localParticipant.unregisterRpcMethod('get_codepad_state');
-        };
-    }, [localParticipant]);
-
-    const defaultCode = `# -----------------------------------------------------------
+  const defaultCode = `# -----------------------------------------------------------
 # PROBLEM DESCRIPTION:
 # -----------------------------------------------------------
 # Given an array of integers \`nums\` and an integer \`target\`,
@@ -92,22 +98,22 @@ if __name__ == "__main__":
     print("Test Case 2:", two_sum([3, 2, 4], 6))      # Expected: [1, 2]
     print("Test Case 3:", two_sum([3, 3], 6))         # Expected: [0, 1]`;
 
-    return (
-        <div className={className}>
-            <Editor
-                height="100%"
-                defaultLanguage="python"
-                defaultValue={initialCode || defaultCode}
-                theme="vs-dark"
-                onMount={handleEditorDidMount}
-                options={{
-                    minimap: { enabled: false },
-                    fontSize: 14,
-                    wordWrap: 'on',
-                    scrollBeyondLastLine: false,
-                    automaticLayout: true,
-                }}
-            />
-        </div>
-    );
+  return (
+    <div className={className}>
+      <Editor
+        height="100%"
+        defaultLanguage="python"
+        defaultValue={initialCode || defaultCode}
+        theme="vs-dark"
+        onMount={handleEditorDidMount}
+        options={{
+          minimap: { enabled: false },
+          fontSize: 14,
+          wordWrap: 'on',
+          scrollBeyondLastLine: false,
+          automaticLayout: true,
+        }}
+      />
+    </div>
+  );
 }

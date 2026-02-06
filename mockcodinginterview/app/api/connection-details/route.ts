@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { AccessToken, type AccessTokenOptions, type VideoGrant } from 'livekit-server-sdk';
+import { z } from 'zod';
 import { RoomConfiguration } from '@livekit/protocol';
-import { Agent } from "@mastra/core/agent";
-import { z } from "zod";
+import { Agent } from '@mastra/core/agent';
+import { generateInterview } from '@/mastra';
 
 type ConnectionDetails = {
   serverUrl: string;
@@ -19,8 +20,6 @@ const LIVEKIT_URL = process.env.LIVEKIT_URL;
 // don't cache the results
 export const revalidate = 0;
 
-import { generateInterview } from '@/mastra';
-
 export async function POST(req: Request) {
   try {
     if (LIVEKIT_URL === undefined) {
@@ -35,7 +34,7 @@ export async function POST(req: Request) {
 
     // Parse configuration from request body
     const body = await req.json();
-    const agentName: string = body?.room_config?.agents?.[0]?.agent_name || "interviewer-agent";
+    const agentName: string = body?.room_config?.agents?.[0]?.agent_name || 'interviewer-agent';
 
     // Extract user preferences with fallbacks
     const programming_language = body?.programming_language || 'python';
@@ -48,20 +47,18 @@ export async function POST(req: Request) {
 
     // --- EXECUTE MASTRA PIPELINE ---
     // --- EXECUTE MASTRA PIPELINE ---
-    const {
-      interviewer_problem_reference_guide,
-      text_based_problem_description_given_to_user
-    } = await generateInterview(company_name, programming_language);
+    const { interviewer_problem_reference_guide, text_based_problem_description_given_to_user } =
+      await generateInterview(company_name, programming_language);
 
     if (!text_based_problem_description_given_to_user) {
-      throw new Error("Failed to generate interview content");
+      throw new Error('Failed to generate interview content');
     }
 
     // Pack into metadata for the LiveKit agent to read
     const metadata = JSON.stringify({
       programming_language,
       text_based_problem_description_given_to_user,
-      interviewer_problem_reference_guide
+      interviewer_problem_reference_guide,
     });
 
     const participantToken = await createParticipantToken(
@@ -89,7 +86,7 @@ export async function POST(req: Request) {
       console.error(error);
       return new NextResponse(error.message, { status: 500 });
     }
-    return new NextResponse("Unknown error", { status: 500 });
+    return new NextResponse('Unknown error', { status: 500 });
   }
 }
 

@@ -7,9 +7,9 @@ import { WarningIcon } from '@phosphor-icons/react/dist/ssr';
 import type { AppConfig } from '@/app-config';
 import { AgentSessionProvider } from '@/components/agents-ui/agent-session-provider';
 import { StartAudioButton } from '@/components/agents-ui/start-audio-button';
+import { SetupScreen } from '@/components/app/setup-screen';
 import { ViewController } from '@/components/app/view-controller';
 import { Toaster } from '@/components/ui/sonner';
-import { SetupScreen } from '@/components/app/setup-screen';
 import { useAgentErrors } from '@/hooks/useAgentErrors';
 import { useDebugMode } from '@/hooks/useDebug';
 import { getSandboxTokenSource } from '@/lib/utils';
@@ -26,7 +26,6 @@ function AppSetup() {
 interface AppProps {
   appConfig: AppConfig;
 }
-
 
 export function App({ appConfig }: AppProps) {
   const [connectionDetails, setConnectionDetails] = useState<{
@@ -90,13 +89,15 @@ export function App({ appConfig }: AppProps) {
     <InterviewSession
       appConfig={appConfig}
       connectionDetails={connectionDetails}
+      onReset={() => setConnectionDetails(null)}
     />
   );
 }
 
 function InterviewSession({
   appConfig,
-  connectionDetails
+  connectionDetails,
+  onReset,
 }: {
   appConfig: AppConfig;
   connectionDetails: {
@@ -105,7 +106,8 @@ function InterviewSession({
     participantToken: string;
     participantName: string;
     initialCode?: string;
-  }
+  };
+  onReset: () => void;
 }) {
   const tokenSource = useMemo(() => {
     return TokenSource.custom(async () => {
@@ -122,11 +124,15 @@ function InterviewSession({
     <AgentSessionProvider session={session}>
       <AppSetup />
       <main className="grid h-svh grid-cols-1 place-content-center">
-        <ViewController appConfig={appConfig} initialCode={connectionDetails.initialCode} />
+        <ViewController
+          appConfig={appConfig}
+          initialCode={connectionDetails.initialCode}
+          onReset={onReset}
+        />
       </main>
       <StartAudioButton
         label="Join Interview"
-        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 shadow-lg"
+        className="fixed bottom-8 left-1/2 z-50 -translate-x-1/2 shadow-lg"
       />
       <Toaster
         icons={{
