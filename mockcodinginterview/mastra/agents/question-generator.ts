@@ -7,11 +7,11 @@ const { TIME_LIMIT_HARD_CUTOFF_SECONDS } = SHARED_CONFIG;
 // --- AGENT 1: THE HIRING MANAGER (Gemini 3 Pro) ---
 // Role: Research the company, define the problem, and write the guide.
 export const questionGeneratorAgent = new Agent({
-    id: 'question-generator-agent',
-    name: 'Question Generator',
-    model: google('gemini-3-flash-preview'),
+  id: 'question-generator-agent',
+  name: 'Question Generator',
+  model: google('gemini-3-flash-preview'),
 
-    instructions: `
+  instructions: `
     You are an expert Technical Interview Designer at a FAANG-level company (Google, Meta, Netflix, etc.).
     
     **YOUR GOAL:**

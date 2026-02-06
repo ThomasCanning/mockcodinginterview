@@ -4,10 +4,10 @@ import { Agent } from '@mastra/core/agent';
 // --- AGENT 2: THE PLATFORM ENGINEER (Gemini 3 Flash Preview) ---
 // Role: Take the specs and write the starter code.
 export const startingCodeAgent = new Agent({
-    id: 'starting-code-agent',
-    name: 'Starting Code',
-    model: google('gemini-3-flash-preview'),
-    instructions: `
+  id: 'starting-code-agent',
+  name: 'Starting Code',
+  model: google('gemini-3-flash-preview'),
+  instructions: `
     You are setting up the CoderPad environment for an interview.
     1. Read the "Technical Spec" provided by the Hiring Manager.
     2. Create a "Problem Description" that will be displayed in the editor.

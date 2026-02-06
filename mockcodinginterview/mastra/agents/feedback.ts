@@ -2,10 +2,10 @@ import { google } from '@ai-sdk/google';
 import { Agent } from '@mastra/core/agent';
 
 export const feedbackAgent = new Agent({
-    id: 'feedback-agent',
-    name: 'Feedback Agent',
-    model: google('gemini-3-flash-preview'),
-    instructions: `
+  id: 'feedback-agent',
+  name: 'Feedback Agent',
+  model: google('gemini-3-flash-preview'),
+  instructions: `
     You are an expert Technical Interview Evaluator.
     Your goal is to evaluate a candidate's performance in a coding interview based on the provided **transcript** and **final code**.
 

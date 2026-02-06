@@ -64,9 +64,9 @@ export function ViewController({ appConfig, initialCode, onReset }: ViewControll
       setHasConnected(true);
     } else if (hasConnected) {
       // If we disconnect and have feedback data, show it.
-      // If we disconnect without feedback data, it might be an error or early exit, 
+      // If we disconnect without feedback data, it might be an error or early exit,
       // but showing feedback needs data.
-      // If we rely on RPC to set feedback, we should probably switch to feedback view 
+      // If we rely on RPC to set feedback, we should probably switch to feedback view
       // primarily when feedback arrives, or when disconnected IF we have feedback.
       if (feedbackData) {
         setShowFeedback(true);
@@ -87,7 +87,7 @@ export function ViewController({ appConfig, initialCode, onReset }: ViewControll
   };
 
   const handleFeedback = (data: FeedbackData) => {
-    console.log("Feedback received:", data);
+    console.log('Feedback received:', data);
     setFeedbackData(data);
     // Optionally trigger disconnect here if the agent doesn't do it?
     // The agent usually disconnects after sending feedback.
