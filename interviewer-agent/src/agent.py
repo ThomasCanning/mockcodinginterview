@@ -23,7 +23,7 @@ from livekit.agents import (
 from livekit.plugins import (
     cartesia,
     deepgram,
-    openai,
+    google, 
     silero,
     noise_cancellation,
 )
@@ -35,9 +35,12 @@ AGENT_NAME = os.getenv("AGENT_NAME", "interviewer-agent")
 
 logger = logging.getLogger(f"agent-{AGENT_NAME}")
 
-TIME_LIMIT_MINIMUM_SECONDS = 15 * 60
-TIME_LIMIT_SOFT_WARNING_SECONDS = 25 * 60
-TIME_LIMIT_HARD_CUTOFF_SECONDS = 30 * 60
+from utils.config import (
+    TIME_LIMIT_MINIMUM_SECONDS,
+    TIME_LIMIT_SOFT_WARNING_SECONDS,
+    TIME_LIMIT_HARD_CUTOFF_SECONDS
+)
+
 TIME_REMAINING_WARNING_SECONDS = TIME_LIMIT_HARD_CUTOFF_SECONDS - TIME_LIMIT_SOFT_WARNING_SECONDS
 
 
@@ -88,16 +91,13 @@ class DefaultAgent(Agent):
             instructions=self._templater.render("""You are an experienced Technical Interviewer at a top-tier tech company. 
 Your goal is to assess the candidate's coding skills in {{metadata.programming_language}}.
 
-=== THE PROBLEM ===
-Here is the problem description the user sees:
+=== PROBLEM PRESENTED TO CANDIDATE ===
+Here is the scaffolding code that gets pasted into the users code editor. It includes a problem description, function signature, and example inputs/outputs.
 {{metadata.text_based_problem_description_given_to_user}}
 
 === REFERENCE GUIDE (FOR YOUR EYES ONLY) ===
-Use this guide to evaluate the candidate's approac and provide hints if necessary. Do not enforce specific implementation details if their logic is valid.
+Use this guide to evaluate the candidate's approach and provide hints if necessary. Do not enforce specific implementation details if their logic is valid.
 {{metadata.interviewer_problem_reference_guide}}
-
-=== STARTER CODE (USER SEES THIS) ===
-{{metadata.starter_code}}
 
 === BEHAVIORAL PHASES ===
 1. **INTRODUCTION:** - Greet the candidate, introduce the format of the interview and the problem.
@@ -232,7 +232,7 @@ server.setup_fnc = prewarm
 async def entrypoint(ctx: JobContext):
     session = AgentSession(
         stt=deepgram.STT(model="nova-3"),
-        llm=openai.LLM(model="gpt-4o-mini"),
+        llm=google("gemini-3-flash"),
         tts=cartesia.TTS(voice="a167e0f3-df7e-4d52-a9c3-f949145efdab"),
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],

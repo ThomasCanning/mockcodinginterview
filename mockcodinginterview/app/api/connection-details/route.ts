@@ -12,7 +12,6 @@ type ConnectionDetails = {
   initialCode?: string;
 };
 
-// NOTE: you are expected to define the following environment variables in `.env.local`:
 const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_URL = process.env.LIVEKIT_URL;
@@ -48,36 +47,21 @@ export async function POST(req: Request) {
     const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
 
     // --- EXECUTE MASTRA PIPELINE ---
-    const { guide, candidate_prompt, starter_code } = await generateInterview(company_name, programming_language);
+    // --- EXECUTE MASTRA PIPELINE ---
+    const {
+      interviewer_problem_reference_guide,
+      text_based_problem_description_given_to_user
+    } = await generateInterview(company_name, programming_language);
 
-    if (!candidate_prompt || !starter_code) {
+    if (!text_based_problem_description_given_to_user) {
       throw new Error("Failed to generate interview content");
     }
 
-    // Format the guide object into a string for the Python agent
-    const formattedGuide = `
-# ${guide.title}
-
-## Context
-${guide.company_context}
-
-## Solution Walkthrough
-${guide.solution_walkthrough}
-
-## Common Pitfalls
-${guide.common_pitfalls.map(p => `- ${p}`).join('\n')}
-
-## Evaluation Rubric
-${guide.evaluation_rubric}
-    `.trim();
-
     // Pack into metadata for the LiveKit agent to read
-    // We map 'candidate_prompt' to 'text_based_problem_description_given_to_user' to maintain naming compatibility
     const metadata = JSON.stringify({
       programming_language,
-      text_based_problem_description_given_to_user: candidate_prompt,
-      interviewer_problem_reference_guide: formattedGuide,
-      starter_code: starter_code // Passed potentially for future agent features
+      text_based_problem_description_given_to_user,
+      interviewer_problem_reference_guide
     });
 
     const participantToken = await createParticipantToken(
@@ -92,7 +76,7 @@ ${guide.evaluation_rubric}
       roomName,
       participantToken: participantToken,
       participantName,
-      initialCode: starter_code, // This is what goes into the Monaco Editor
+      initialCode: text_based_problem_description_given_to_user, // This is what goes into the Monaco Editor
     };
 
     const headers = new Headers({
