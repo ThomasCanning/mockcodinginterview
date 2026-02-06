@@ -93,8 +93,11 @@ Here is the problem description the user sees:
 {{metadata.text_based_problem_description_given_to_user}}
 
 === REFERENCE GUIDE (FOR YOUR EYES ONLY) ===
-Use this guide to evaluate the candidate's approach and provide hints if necessary. Do not enforce specific implementation details if their logic is valid.
+Use this guide to evaluate the candidate's approac and provide hints if necessary. Do not enforce specific implementation details if their logic is valid.
 {{metadata.interviewer_problem_reference_guide}}
+
+=== STARTER CODE (USER SEES THIS) ===
+{{metadata.starter_code}}
 
 === BEHAVIORAL PHASES ===
 1. **INTRODUCTION:** - Greet the candidate, introduce the format of the interview and the problem.

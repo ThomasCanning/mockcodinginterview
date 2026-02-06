@@ -20,33 +20,7 @@ const LIVEKIT_URL = process.env.LIVEKIT_URL;
 // don't cache the results
 export const revalidate = 0;
 
-export const questionGenerationAgent = new Agent({
-  id: "question-generation-agent",
-  name: "Question Generation Agent",
-  instructions: `
-      You are an expert technical interviewer at a top-tier tech company. 
-      Your goal is to generate a realistic coding interview question.
-      
-      You must generate two distinct parts:
-      1. **User Code Context**: This is the starting code given to the candidate in their IDE. It MUST be valid, compilable/interpretable code in the requested language. It should include:
-         - Necessary imports (e.g., \`import java.util.*;\` or \`from typing import List\`).
-         - A clear problem description inside a multi-line comment block at the top.
-         - The function signature/class structure they need to implement.
-         - A \`pass\` or \`return null\` placeholder so the code is syntactically valid immediately.
-      
-      2. **Interviewer Guide**: A secret cheat sheet for the AI interviewer agent. It must include:
-         - A concise summary of the problem.
-         - Some example approaches..
-         - Common pitfalls or bugs candidates make.
-         - Specific hints to nudge the candidate if they get stuck.
-         - Edge cases to watch out for.
-      
-      Keep the problem difficulty to "Medium" - something solvable in 20-30 minutes while explaining thoughts.
-      
-      IMPORTANT: Do NOT wrap the "User Code Context" in markdown code blocks (e.g. \`\`\`python ... \`\`\`). Return ONLY the raw code.
-  `,
-  model: "openai/gpt-4o", // Updated to a valid model identifier (check your provider's slug)
-});
+import { generateInterview } from '@/mastra';
 
 export async function POST(req: Request) {
   try {
@@ -60,12 +34,11 @@ export async function POST(req: Request) {
       throw new Error('LIVEKIT_API_SECRET is not defined');
     }
 
-    // Parse agent configuration from request body
+    // Parse configuration from request body
     const body = await req.json();
     const agentName: string = body?.room_config?.agents?.[0]?.agent_name || "interviewer-agent";
 
     // Extract user preferences with fallbacks
-    // In a real app, you would pass these from the client in the request body
     const programming_language = body?.programming_language || 'python';
     const company_name = body?.company_name || 'Generic Tech Company';
 
@@ -74,41 +47,37 @@ export async function POST(req: Request) {
     const participantIdentity = `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
     const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
 
-    const prompt = `Generate a coding interview question for a software engineer position at ${company_name}. 
-    The programming language MUST be ${programming_language}. 
-    Ensure the coding style matches ${company_name}'s typical interview flavor (e.g., functional vs OOP, algorithmic depth).`;
+    // --- EXECUTE MASTRA PIPELINE ---
+    const { guide, candidate_prompt, starter_code } = await generateInterview(company_name, programming_language);
 
-    // Call the Mastra Agent
-    const result = await questionGenerationAgent.generate(prompt, {
-      structuredOutput: {
-        schema: z.object({
-          text_based_problem_description_given_to_user: z.string().describe("The starting code and comments presented to the user. Must be valid syntax."),
-          interviewer_problem_reference_guide: z.string().describe("The hidden guide for the AI interviewer agent containing solution, hints, and complexities."),
-        }),
-      },
-    });
-
-    // Handle the result safely
-    const generatedContent = result.object;
-
-    if (generatedContent?.text_based_problem_description_given_to_user) {
-      // Strip markdown code fences if present
-      generatedContent.text_based_problem_description_given_to_user = generatedContent.text_based_problem_description_given_to_user
-        .replace(/^```[\w]*\n/, '')
-        .replace(/\n```$/, '');
+    if (!candidate_prompt || !starter_code) {
+      throw new Error("Failed to generate interview content");
     }
 
-    if (!generatedContent) {
-      throw new Error("Failed to generate interview question");
-    }
+    // Format the guide object into a string for the Python agent
+    const formattedGuide = `
+# ${guide.title}
 
-    const { text_based_problem_description_given_to_user, interviewer_problem_reference_guide } = generatedContent;
+## Context
+${guide.company_context}
+
+## Solution Walkthrough
+${guide.solution_walkthrough}
+
+## Common Pitfalls
+${guide.common_pitfalls.map(p => `- ${p}`).join('\n')}
+
+## Evaluation Rubric
+${guide.evaluation_rubric}
+    `.trim();
 
     // Pack into metadata for the LiveKit agent to read
+    // We map 'candidate_prompt' to 'text_based_problem_description_given_to_user' to maintain naming compatibility
     const metadata = JSON.stringify({
       programming_language,
-      text_based_problem_description_given_to_user,
-      interviewer_problem_reference_guide,
+      text_based_problem_description_given_to_user: candidate_prompt,
+      interviewer_problem_reference_guide: formattedGuide,
+      starter_code: starter_code // Passed potentially for future agent features
     });
 
     const participantToken = await createParticipantToken(
@@ -117,13 +86,13 @@ export async function POST(req: Request) {
       agentName
     );
 
-    // Return connection details
+    // Return connection details to the Frontend
     const data: ConnectionDetails = {
       serverUrl: LIVEKIT_URL,
       roomName,
       participantToken: participantToken,
       participantName,
-      initialCode: text_based_problem_description_given_to_user,
+      initialCode: starter_code, // This is what goes into the Monaco Editor
     };
 
     const headers = new Headers({
