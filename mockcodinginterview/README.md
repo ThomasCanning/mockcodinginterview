@@ -160,6 +160,27 @@ AGENT_NAME=
 
 These are required for the voice agent functionality to work with your LiveKit project.
 
+## Development Workflow
+
+To ensure your code is ready for production, follow these steps before committing or deploying:
+
+1.  **Format Code**: Ensure your code follows the project's style guidelines.
+    ```bash
+    pnpm run format
+    ```
+
+2.  **Lint Code**: Check for any potential errors or bad practices.
+    ```bash
+    pnpm run lint
+    ```
+
+3.  **Build Project**: Verify that the project builds successfully.
+    ```bash
+    pnpm run build
+    ```
+
+If all three commands succeed (exit code 0), your build is ready!
+
 ## Contributing
 
 This template is open source and we welcome contributions! Please open a PR or issue through GitHub, and don't forget to join us in the [LiveKit Community Slack](https://livekit.io/join-slack)!
