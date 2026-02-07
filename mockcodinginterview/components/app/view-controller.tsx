@@ -39,6 +39,7 @@ export interface FeedbackData {
   overall_summary: string;
   strengths: string[];
   improvements: string[];
+  isIncomplete?: boolean;
 }
 
 interface ViewControllerProps {
@@ -86,6 +87,31 @@ export function ViewController({ appConfig, initialCode, language, onReset }: Vi
     setShowFeedback(true); // Switch to feedback view immediately to show 'Waiting for feedback'
 
     try {
+      // Logic for "No Activity" - if they said almost nothing and didn't touch the code
+      // We use a threshold of 5 segments for "didnt do anything"
+      const hasMeaningfulTranscript = transcript.length > 5;
+      const hasChangedCode = code.trim() !== initialCode?.trim();
+
+      if (!hasMeaningfulTranscript && !hasChangedCode) {
+        console.log('No meaningful activity detected. Skipping AI feedback.');
+        setFeedbackData({
+          technical_score: 0,
+          technical_feedback: 'N/A',
+          communication_score: 0,
+          communication_feedback: 'N/A',
+          problem_solving_score: 0,
+          problem_solving_feedback: 'N/A',
+          overall_summary:
+            "It looks like you didn't have a chance to start the interview properly. No feedback was generated for this session.",
+          strengths: [],
+          improvements: [],
+          isIncomplete: true,
+        });
+        setIsGeneratingFeedback(false);
+        if (room) end();
+        return;
+      }
+
       // Disconnect from the room as soon as we have the data we need
       // This stops audio/agent usage while the user waits for the LLM
       if (room) {

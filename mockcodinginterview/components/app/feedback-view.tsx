@@ -33,7 +33,9 @@ export function FeedbackView({
       <header className="flex items-center justify-between border-b px-6 py-4">
         <div>
           <h1 className="text-xl font-bold">Interview Feedback</h1>
-          <p className="text-muted-foreground text-sm">AI Evaluation Results</p>
+          <p className="text-muted-foreground text-sm">
+            {feedbackData.isIncomplete ? 'Session Status' : 'AI Evaluation Results'}
+          </p>
         </div>
         <Button onClick={onHome}>Return Home</Button>
       </header>
@@ -43,7 +45,9 @@ export function FeedbackView({
           {/* Overall Summary */}
           <Card>
             <CardHeader>
-              <CardTitle>Overall Summary</CardTitle>
+              <CardTitle>
+                {feedbackData.isIncomplete ? 'Incomplete Session' : 'Overall Summary'}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground leading-relaxed">
@@ -52,63 +56,67 @@ export function FeedbackView({
             </CardContent>
           </Card>
 
-          {/* Scores */}
-          <div className="grid gap-6 md:grid-cols-3">
-            <ScoreCard
-              label="Technical"
-              score={feedbackData.technical_score}
-              feedback={feedbackData.technical_feedback}
-            />
-            <ScoreCard
-              label="Communication"
-              score={feedbackData.communication_score}
-              feedback={feedbackData.communication_feedback}
-            />
-            <ScoreCard
-              label="Problem Solving"
-              score={feedbackData.problem_solving_score}
-              feedback={feedbackData.problem_solving_feedback}
-            />
-          </div>
+          {!feedbackData.isIncomplete && (
+            <>
+              {/* Scores */}
+              <div className="grid gap-6 md:grid-cols-3">
+                <ScoreCard
+                  label="Technical"
+                  score={feedbackData.technical_score}
+                  feedback={feedbackData.technical_feedback}
+                />
+                <ScoreCard
+                  label="Communication"
+                  score={feedbackData.communication_score}
+                  feedback={feedbackData.communication_feedback}
+                />
+                <ScoreCard
+                  label="Problem Solving"
+                  score={feedbackData.problem_solving_score}
+                  feedback={feedbackData.problem_solving_feedback}
+                />
+              </div>
 
-          {/* Strengths & Improvements */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card className="border-green-500/20 bg-green-500/5">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-green-600">
-                  <CheckCircle2 className="h-5 w-5" /> Strengths
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {feedbackData.strengths.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
+              {/* Strengths & Improvements */}
+              <div className="grid gap-6 md:grid-cols-2">
+                <Card className="border-green-500/20 bg-green-500/5">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-green-600">
+                      <CheckCircle2 className="h-5 w-5" /> Strengths
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2">
+                      {feedbackData.strengths.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
 
-            <Card className="border-orange-500/20 bg-orange-500/5">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-orange-600">
-                  <XCircle className="h-5 w-5" /> Areas for Improvement
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {feedbackData.improvements.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-orange-500" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
+                <Card className="border-orange-500/20 bg-orange-500/5">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-orange-600">
+                      <XCircle className="h-5 w-5" /> Areas for Improvement
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2">
+                      {feedbackData.improvements.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-orange-500" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
