@@ -2,30 +2,52 @@
 
 import React, { useState } from 'react';
 import type { DataPacket_Kind, Participant } from 'livekit-client';
-import { useRoomContext, useSessionContext, useVoiceAssistant } from '@livekit/components-react';
+import {
+  useRoomContext,
+  useSessionContext,
+  useTranscriptions,
+  useVoiceAssistant,
+} from '@livekit/components-react';
 import type { AppConfig } from '@/app-config';
 import { AgentAudioVisualizerBar } from '@/components/agents-ui/agent-audio-visualizer-bar';
 import { AgentControlBar } from '@/components/agents-ui/agent-control-bar';
-import { CodeEditor } from '@/components/app/code-editor';
+import { CodeEditor, type CodeEditorHandle } from '@/components/app/code-editor';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/shadcn/utils';
-import type { FeedbackData } from './view-controller';
 
 interface SessionViewProps {
   appConfig: AppConfig;
   initialCode?: string;
-  onFeedback: (data: FeedbackData) => void;
+  onComplete: (transcript: any[], code: string) => void;
 }
 
 export const SessionView = ({
-  appConfig: _appConfig,
+  appConfig,
   initialCode,
-  onFeedback,
+  onComplete,
   ...props
 }: React.ComponentProps<'section'> & SessionViewProps) => {
   const session = useSessionContext();
   const [chatOpen, setChatOpen] = useState(false);
   const { state: agentState, audioTrack: agentAudioTrack } = useVoiceAssistant();
   const room = useRoomContext();
+  const segments = useTranscriptions();
+  const editorRef = React.useRef<CodeEditorHandle>(null);
+
+  // We need to capture the transcript in a way that the feedback agent likes.
+  // The feedbackAgent expects a list of { role: 'user' | 'assistant', content: string }
+  const getFormattedTranscript = React.useCallback(() => {
+    return segments.map((s) => ({
+      role: s.participantInfo?.identity === room?.localParticipant.identity ? 'user' : 'assistant',
+      content: s.text,
+    }));
+  }, [segments, room]);
+
+  const handleEndInterview = React.useCallback(() => {
+    const transcript = getFormattedTranscript();
+    const code = editorRef.current?.getCode() || '';
+    onComplete(transcript, code);
+  }, [onComplete, getFormattedTranscript]);
 
   React.useEffect(() => {
     if (!room) return;
@@ -40,9 +62,10 @@ export const SessionView = ({
       try {
         const json = JSON.parse(str);
 
-        if (json.method === 'feedback_generated' && json.payload) {
-          const feedback = JSON.parse(json.payload);
-          onFeedback(feedback);
+        // Listen for the 'wrap up' signal from the agent
+        if (json.method === 'interview_end_signal') {
+          console.log('Received end signal from agent');
+          handleEndInterview();
         }
       } catch (e) {
         // ignore non-json
@@ -53,13 +76,17 @@ export const SessionView = ({
     return () => {
       room.off('dataReceived', onDataReceived);
     };
-  }, [room, onFeedback]);
+  }, [room, handleEndInterview]);
 
   return (
     <section className="bg-background flex h-svh w-svw flex-col overflow-hidden" {...props}>
       {/* Full Screen Code Editor */}
       <div className="relative w-full flex-1">
-        <CodeEditor className="absolute inset-0 h-full w-full" initialCode={initialCode} />
+        <CodeEditor
+          ref={editorRef}
+          className="absolute inset-0 h-full w-full"
+          initialCode={initialCode}
+        />
       </div>
 
       {/* Bottom Bar */}
@@ -112,25 +139,19 @@ export const SessionView = ({
             className="border-none bg-transparent p-0 shadow-none"
           />
         </div>
-      </div>
 
-      {/* Right: End Call */}
-      <div className="flex items-center">
-        <AgentControlBar
-          controls={{
-            leave: true,
-            microphone: false,
-            camera: false,
-            chat: false,
-            screenShare: false,
-          }}
-          variant="default"
-          isChatOpen={chatOpen}
-          isConnected={session.isConnected}
-          onDisconnect={() => session.end()}
-          onIsChatOpenChange={setChatOpen}
-          className="border-none bg-transparent p-0 shadow-none"
-        />
+        <div className="bg-border h-8 w-px" />
+
+        {/* Right: End Call */}
+        <div className="flex items-center">
+          <Button
+            variant="destructive"
+            onClick={handleEndInterview}
+            className="font-mono text-xs font-bold tracking-wider uppercase"
+          >
+            End Interview
+          </Button>
+        </div>
       </div>
     </section>
   );

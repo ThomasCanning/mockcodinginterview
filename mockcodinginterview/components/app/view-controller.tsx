@@ -44,13 +44,15 @@ export interface FeedbackData {
 interface ViewControllerProps {
   appConfig: AppConfig;
   initialCode?: string;
+  language: string;
   onReset: () => void;
 }
 
-export function ViewController({ appConfig, initialCode, onReset }: ViewControllerProps) {
-  const { isConnected, start } = useSessionContext();
+export function ViewController({ appConfig, initialCode, language, onReset }: ViewControllerProps) {
+  const { isConnected, start, room, end } = useSessionContext();
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackData, setFeedbackData] = useState<FeedbackData | null>(null);
+  const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
   const [hasConnected, setHasConnected] = useState(false);
 
   useEffect(() => {
@@ -59,25 +61,17 @@ export function ViewController({ appConfig, initialCode, onReset }: ViewControll
     }
   }, [isConnected, start, hasConnected]);
 
+  // If we unexpectedly disconnect without having triggered feedback, 
+  // we should handle it (e.g. show an error or just go home)
   useEffect(() => {
     if (isConnected) {
       setHasConnected(true);
-    } else if (hasConnected) {
-      // If we disconnect and have feedback data, show it.
-      // If we disconnect without feedback data, it might be an error or early exit,
-      // but showing feedback needs data.
-      // If we rely on RPC to set feedback, we should probably switch to feedback view
-      // primarily when feedback arrives, or when disconnected IF we have feedback.
-      if (feedbackData) {
-        setShowFeedback(true);
-      } else {
-        // Fallback or just show feedback view saying "No feedback" if expected?
-        // For now let's only show if we have data, otherwise maybe Go Home?
-        // Or we can just show the empty feedback view (original behavior).
-        setShowFeedback(true);
-      }
+    } else if (hasConnected && !isGeneratingFeedback && !feedbackData) {
+      // Unexpected disconnect
+      // For now, if we disconnect and aren't waiting for feedback, just show the feedback view (it will show 'Return Home')
+      setShowFeedback(true);
     }
-  }, [isConnected, hasConnected, feedbackData]);
+  }, [isConnected, hasConnected, isGeneratingFeedback, feedbackData]);
 
   const handleHome = () => {
     setShowFeedback(false);
@@ -86,17 +80,48 @@ export function ViewController({ appConfig, initialCode, onReset }: ViewControll
     onReset();
   };
 
-  const handleFeedback = (data: FeedbackData) => {
-    console.log('Feedback received:', data);
-    setFeedbackData(data);
-    // Optionally trigger disconnect here if the agent doesn't do it?
-    // The agent usually disconnects after sending feedback.
+  const handleComplete = async (transcript: any[], code: string) => {
+    console.log('Interview complete. Generating feedback...');
+    setIsGeneratingFeedback(true);
+    setShowFeedback(true); // Switch to feedback view immediately to show 'Waiting for feedback'
+
+    try {
+      // Disconnect from the room as soon as we have the data we need
+      // This stops audio/agent usage while the user waits for the LLM
+      if (room) {
+        end();
+      }
+
+      const response = await fetch('/api/generate-feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transcript,
+          code,
+          programming_language: language,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate feedback');
+      }
+
+      const data = await response.json();
+      setFeedbackData(data);
+    } catch (error) {
+      console.error('Error generating feedback:', error);
+      // feedbackData remains null, FeedbackView will show error/retry
+    } finally {
+      setIsGeneratingFeedback(false);
+    }
   };
 
   return (
     <AnimatePresence mode="wait">
       {/* Loading/Connecting view */}
-      {!isConnected && !showFeedback && (
+      {!isConnected && !hasConnected && (
         <motion.div
           key="connecting"
           {...VIEW_MOTION_PROPS}
@@ -114,7 +139,7 @@ export function ViewController({ appConfig, initialCode, onReset }: ViewControll
           {...VIEW_MOTION_PROPS}
           appConfig={appConfig}
           initialCode={initialCode}
-          onFeedback={handleFeedback}
+          onComplete={handleComplete}
         />
       )}
 
@@ -125,6 +150,7 @@ export function ViewController({ appConfig, initialCode, onReset }: ViewControll
           {...VIEW_MOTION_PROPS}
           onHome={handleHome}
           feedbackData={feedbackData}
+          isGenerating={isGeneratingFeedback}
         />
       )}
     </AnimatePresence>

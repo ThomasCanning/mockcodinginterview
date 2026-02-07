@@ -86,6 +86,14 @@ export async function generateInterview(company: string, language: string) {
 }
 
 export async function generateFeedback(transcript: any[], code: string, language: string) {
+  console.log('--- GENERATING FEEDBACK ---');
+  console.log(`Language: ${language}`);
+  console.log(`Transcript segments: ${transcript.length}`);
+  console.log(`Code size: ${code.length} characters`);
+  console.log('--- CODE PREVIEW ---');
+  console.log(code.slice(0, 500) + (code.length > 500 ? '...' : ''));
+  console.log('--------------------');
+
   const result = await feedbackAgent.generate(
     `
     Evaluate the candidate's performance.
