@@ -37,11 +37,12 @@ AGENT_NAME = os.getenv("AGENT_NAME", "interviewer-agent")
 
 logger = logging.getLogger(f"agent-{AGENT_NAME}")
 
-from utils.config import (
+from utils.constants import (
     TIME_LIMIT_MINIMUM_SECONDS,
     TIME_LIMIT_SOFT_WARNING_SECONDS,
     TIME_LIMIT_HARD_CUTOFF_SECONDS
 )
+
 
 TIME_REMAINING_WARNING_SECONDS = TIME_LIMIT_HARD_CUTOFF_SECONDS - TIME_LIMIT_SOFT_WARNING_SECONDS
 

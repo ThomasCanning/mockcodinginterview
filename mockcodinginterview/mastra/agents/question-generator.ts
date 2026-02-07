@@ -1,8 +1,7 @@
 import { google } from '@ai-sdk/google';
 import { Agent } from '@mastra/core/agent';
-import { SHARED_CONFIG } from '@/lib/shared_config';
+import { TIME_LIMIT_HARD_CUTOFF_SECONDS } from '@/lib/constants';
 
-const { TIME_LIMIT_HARD_CUTOFF_SECONDS } = SHARED_CONFIG;
 
 // --- AGENT 1: THE HIRING MANAGER (Gemini 3 Pro) ---
 // Role: Research the company, define the problem, and write the guide.
