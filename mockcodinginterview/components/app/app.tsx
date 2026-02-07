@@ -34,16 +34,13 @@ export function App({ appConfig }: AppProps) {
     participantToken: string;
     participantName: string;
     initialCode?: string;
+    language: string;
   } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleStart = async (language: string, company: string) => {
     setIsGenerating(true);
     try {
-      // If we are in sandbox/demo mode using local env vars for connection, we might skip this.
-      // But the requirement implies we want to use the backend to generate questions.
-      // So we will always hit the API.
-
       const res = await fetch('/api/connection-details', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,10 +58,9 @@ export function App({ appConfig }: AppProps) {
       }
 
       const data = await res.json();
-      setConnectionDetails(data);
+      setConnectionDetails({ ...data, language });
     } catch (error) {
       console.error('Failed to start interview:', error);
-      // Ideally show an error toast here
     } finally {
       setIsGenerating(false);
     }
@@ -106,6 +102,7 @@ function InterviewSession({
     participantToken: string;
     participantName: string;
     initialCode?: string;
+    language: string;
   };
   onReset: () => void;
 }) {
@@ -127,6 +124,7 @@ function InterviewSession({
         <ViewController
           appConfig={appConfig}
           initialCode={connectionDetails.initialCode}
+          language={connectionDetails.language}
           onReset={onReset}
         />
       </main>

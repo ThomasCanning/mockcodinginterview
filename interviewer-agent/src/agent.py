@@ -5,7 +5,7 @@ from typing import Optional
 from urllib.parse import quote
 import handlebars
 import json
-import aiohttp
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 from livekit import rtc
@@ -146,84 +146,31 @@ c) The candidate explicitly asks for feedback (e.g., "Does this look right?").
             logger.error(f"CRITICAL: Failed to generate greeting: {e}", exc_info=True)
             # await self.session.say("Hello. I am having trouble connecting to my brain. Please wait.", allow_interruptions=False)
 
-    async def _get_codepad_content(self) -> str:
-        room = self.session.room
-        linked_participant = self.session.room_io.linked_participant
-        if not linked_participant:
-            return ""
-
-        payload = {}
-        try:
-            response = await room.local_participant.perform_rpc(
-                destination_identity=linked_participant.identity,
-                method="get_codepad_state",
-                payload=json.dumps(payload),
-                response_timeout=10.0,
-            )
-            return response
-        except Exception as e:
-            logger.error(f"Error getting codepad content: {e}")
-            return ""
-
-    async def conclude_interview(self):
-        logger.info("Concluding interview and generating feedback...")
+    async def signal_interview_end(self):
+        """Signals the frontend that the interview should wrap up and process feedback."""
+        logger.info("Signalling interview end to frontend")
         
-        try:
-            await self.session.say("I'm generating your feedback now, please wait a moment.", allow_interruptions=False)
-        except:
-            pass
+        # Shutdown the timer if it's running
+        if hasattr(self, '_monitor_task') and self._monitor_task:
+            self._monitor_task.cancel()
 
-        # 1. Get Transcript
-        # Convert ChatMessage objects to list of dicts or just pass them if serializable
-        # ChatContext.messages is a list of ChatMessage
-        transcript = []
-        for msg in self.session.chat_ctx.messages:
-            transcript.append({
-                "role": msg.role.value if hasattr(msg.role, "value") else str(msg.role),
-                "content": msg.content,
-                # "timestamp": msg.timestamp
+        try:
+            # Send a simple data packet that the frontend can listen for
+            payload = json.dumps({
+                "method": "interview_end_signal",
             })
-
-        # 2. Get Code
-        code = await self._get_codepad_content()
-
-        # 3. Call API
-        try:
-            api_url = os.getenv("NEXT_PUBLIC_API_URL", "http://localhost:3000")
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{api_url}/api/generate-feedback",
-                    json={
-                        "transcript": transcript,
-                        "code": code,
-                        "programming_language": self._templater.variables["metadata"].get("programming_language", "python")
-                    }
-                ) as resp:
-                    if resp.status == 200:
-                        feedback_data = await resp.json()
-                        logger.info(f"Feedback generated: {feedback_data}")
-                        
-                        # 4. Send RPC to frontend
-                        room = self.session.room
-                        linked_participant = self.session.room_io.linked_participant
-                        if linked_participant:
-                             # Send as RPC or Data? 
-                             # The frontend listens for 'dataReceived' and checks for method="feedback_generated"
-                             payload = json.dumps({
-                                 "method": "feedback_generated",
-                                 "payload": json.dumps(feedback_data)
-                             })
-                             await room.local_participant.publish_data(
-                                 payload.encode("utf-8"),
-                                 reliable=True,
-                                 destination_identities=[linked_participant.identity]
-                             )
-                    else:
-                        logger.error(f"Feedback API failed: {await resp.text()}")
+            await self.session.room.local_participant.publish_data(
+                payload.encode("utf-8"),
+                reliable=True,
+                # We don't specify destination - broadcast to all participants (the user)
+            )
+            
+            # Briefly wait for the packet to send before shutting down the agent itself
+            await asyncio.sleep(0.5)
         except Exception as e:
-             logger.error(f"Error in conclude_interview: {e}")
+            logger.error(f"Error signalling interview end: {e}")
 
-        # Shutdown
+        # Shutdown the agent session
         self.session.shutdown(drain=True)
 
     async def monitor_interview_time(self):
@@ -234,12 +181,8 @@ c) The candidate explicitly asks for feedback (e.g., "Does this look right?").
             
             logger.info(f"Triggering soft warning at {TIME_LIMIT_SOFT_WARNING_SECONDS}s mark")
             soft_warning = (
-                f"[URGENT] We have {TIME_REMAINING_WARNING_SECONDS} seconds remaining. "
-                f"1. Verbally acknowledge the time: 'We have about {TIME_REMAINING_WARNING_SECONDS} seconds left.'"
-                "2. Stop the user from writing new code. "
-                "3. Ask them to summarize their approach or discuss complexity. "
-                "4. If they have an incomplete solution, discuss how they might finish it."
-                "5. Do not start new topics, end the interview when it feels natural. Use the `end_interview` tool to close the session."
+                f"[SYSTEM] Time warning: {TIME_REMAINING_WARNING_SECONDS} seconds remaining. "
+                "Verbally tell the user you are wrapping up, and use the `end_interview` tool once you've finished your final thought."
             )
             await self.session.generate_reply(
                 instructions=soft_warning,
@@ -247,7 +190,6 @@ c) The candidate explicitly asks for feedback (e.g., "Does this look right?").
             )
 
             # Phase 3: Hard Cut-off
-            # Calculate remaining sleep time relative to previous sleep
             remaining_sleep = TIME_LIMIT_HARD_CUTOFF_SECONDS - TIME_LIMIT_SOFT_WARNING_SECONDS
             if remaining_sleep > 0:
                 await asyncio.sleep(remaining_sleep)
@@ -255,13 +197,18 @@ c) The candidate explicitly asks for feedback (e.g., "Does this look right?").
             logger.info(f"Triggering hard cut-off at {TIME_LIMIT_HARD_CUTOFF_SECONDS}s mark")
             try:
                 await self.session.say(
-                    "Ok great, that brings us to the end of the interview. Thanks for your time today, you will recive feedback shortly. Goodbye.",
+                    "I'm sorry, we've reached our time limit for today. I'll wrap things up here. Thanks for your time.",
                     allow_interruptions=False
                 )
             except Exception as e:
                 logger.error(f"Error saying goodbye: {e}")
 
-            await self.conclude_interview()
+            await self.signal_interview_end()
+            
+        except asyncio.CancelledError:
+            logger.info("Interview timer cancelled")
+        except Exception as e:
+            logger.error(f"Error in interview timer: {e}")
             
         except asyncio.CancelledError:
             logger.info("Interview timer cancelled")
@@ -308,7 +255,7 @@ c) The candidate explicitly asks for feedback (e.g., "Does this look right?").
         if hasattr(self, '_monitor_task') and self._monitor_task:
             self._monitor_task.cancel()
              
-        await self.conclude_interview()
+        await self.signal_interview_end()
 
 
 server = AgentServer()

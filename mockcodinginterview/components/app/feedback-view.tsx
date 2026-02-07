@@ -1,4 +1,4 @@
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -7,18 +7,23 @@ import type { FeedbackData } from './view-controller';
 export function FeedbackView({
   onHome,
   feedbackData,
+  isGenerating,
 }: {
   onHome: () => void;
   feedbackData: FeedbackData | null;
+  isGenerating?: boolean;
 }) {
-  if (!feedbackData) {
+  if (isGenerating || !feedbackData) {
     return (
       <div className="bg-background flex h-svh flex-col items-center justify-center space-y-4">
+        <Loader2 className="text-primary h-8 w-8 animate-spin" />
         <h1 className="text-2xl font-bold">Interview Complete</h1>
-        <p className="text-muted-foreground">Waiting for feedback...</p>
-        <Button onClick={onHome} variant="outline">
-          Return Home
-        </Button>
+        <p className="text-muted-foreground">Generating your feedback now, please wait...</p>
+        {!isGenerating && (
+          <Button onClick={onHome} variant="outline">
+            Return Home
+          </Button>
+        )}
       </div>
     );
   }
